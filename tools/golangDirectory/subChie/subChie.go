@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -45,7 +47,7 @@ func create_file() (*os.File, error) {
 	return f, nil
 }
 
-func open_wordList(path string) (*os.File, error) {
+func open_file(path string) (*os.File, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		fmt.Print(err)
@@ -72,7 +74,7 @@ func check_subs(domain string, wordList string, bad_status_code [10]int) {
 	output, _ := create_file()
 
 	// opening the wordlist file
-	wordListOb, _ := open_wordList(wordList)
+	wordListOb, _ := open_file(wordList)
 
 	// Create a new scanner to read the file
 	scanner := bufio.NewScanner(wordListOb)
@@ -107,16 +109,50 @@ func check_subs(domain string, wordList string, bad_status_code [10]int) {
 	}
 }
 
+func dorking(domain string) {
+	query := fmt.Sprint("inurl:*.", domain)
+	dork := fmt.Sprintf("https://www.google.com/search?q=%s", query)
+
+	fmt.Println(dork)
+
+	output, _ := create_file()
+
+	resp, err := http.Get(dork)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(string(body))
+	// Parse response body for URLs using regular expressions
+	urlRegex := regexp.MustCompile(`href="\/url\?q=(.*?)&amp;`)
+	matches := urlRegex.FindAllStringSubmatch(string(body), -1)
+
+	// Print out list of matched URLs
+	for _, match := range matches {
+		fmt.Println(match[1])
+		if _, err = output.WriteString(match[1] + "\n"); err != nil {
+			panic(err)
+		}
+	}
+
+}
+
 func main() {
 	banner()
 	var help bool
 	var wordList string
 	var domain string
+	var dork bool
 	bad_status_code := [10]int{404, 401, 500, 501, 502, 503, 504, 505}
 
 	flag.BoolVar(&help, "h", false, "a breif guide of the tool")
 	flag.StringVar(&wordList, "w", "", "relative Path of the wordlist")
 	flag.StringVar(&domain, "d", "", "the target domain")
+	flag.BoolVar(&dork, "g", false, "use google dorks")
 
 	flag.Parse()
 
@@ -126,5 +162,8 @@ func main() {
 	}
 	if wordList != "" && domain != "" {
 		check_subs(domain, wordList, bad_status_code)
+	}
+	if domain != "" && dork {
+		dorking(domain)
 	}
 }
