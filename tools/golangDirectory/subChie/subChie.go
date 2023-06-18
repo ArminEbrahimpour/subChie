@@ -22,6 +22,7 @@ func guide() {
 -h			shows this\/ 		- - -
 -d			domain			-d example.com
 -w			wordlist		-w Path
+-g			google hakcing  -g
 
 	`)
 }
