@@ -112,32 +112,36 @@ func check_subs(domain string, wordList string, bad_status_code [10]int) {
 
 func dorking(domain string) {
 	query := fmt.Sprint("inurl:*.", domain)
-	dork := fmt.Sprintf("https://www.google.com/search?q=%s", query)
+	for page := 0; page <= 50; page++ {
+		dork := fmt.Sprintf("https://www.google.com/search?q=%s+-www&filter=0&start=%d", query, page)
 
-	fmt.Println(dork)
+		fmt.Println(dork)
 
-	output, _ := create_file()
+		output, _ := create_file()
 
-	resp, err := http.Get(dork)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-	//fmt.Println(string(body))
-	// Parse response body for URLs using regular expressions
-	urlRegex := regexp.MustCompile(`href="\/url\?q=(.*?)&amp;`)
-	matches := urlRegex.FindAllStringSubmatch(string(body), -1)
-
-	// Print out list of matched URLs
-	for _, match := range matches {
-		fmt.Println(match[1])
-		if _, err = output.WriteString(match[1] + "\n"); err != nil {
+		resp, err := http.Get(dork)
+		if err != nil {
 			panic(err)
 		}
+		defer resp.Body.Close()
+
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		//fmt.Println(string(body))
+		// Parse response body for URLs using regular expressions
+		urlRegex := regexp.MustCompile(`href="\/url\?q=(.*?)&amp;`)
+		matches := urlRegex.FindAllStringSubmatch(string(body), -1)
+
+		// Print out list of matched URLs
+		for _, match := range matches {
+			fmt.Println(match[1])
+			if _, err = output.WriteString(match[1] + "\n"); err != nil {
+				panic(err)
+			}
+		}
+
 	}
 
 }
