@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -111,11 +112,16 @@ func check_subs(domain string, wordList string, bad_status_code [10]int) {
 }
 
 func dorking(domain string) {
+	// a query for searching :
 	query := fmt.Sprint("inurl:*.", domain)
-	for page := 0; page <= 50; page++ {
-		dork := fmt.Sprintf("https://www.google.com/search?q=%s+-www&filter=0&start=%d", query, page)
 
-		fmt.Println(dork)
+	// in this for loop we check only 20 pages if you think your query can have more pages as result you can change the part = (page <= 20)
+	for page := 0; page <= 20; page++ {
+		dork := fmt.Sprintf("https://www.google.com/search?q=%s+-www&start=%d", query, page)
+
+		color.New(color.FgHiCyan, color.Bold).Println("Please wait until it ends itself")
+		fmt.Println("")
+		color.New(color.FgBlue, color.Bold).Println(dork)
 
 		output, _ := create_file()
 
@@ -145,6 +151,27 @@ func dorking(domain string) {
 	}
 
 }
+func delete_extra_outputs(unix bool) error {
+	// runs the commnad based on OperatingSystem of the user
+	if unix {
+		cmd := exec.Command("python3", "./uniq_output.py")
+		_, err := cmd.Output()
+
+		if err != nil {
+			return err
+		}
+	} else {
+		cmd := exec.Command("python", "./uniq_output.py")
+		_, err := cmd.Output()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
 
 func main() {
 	banner()
@@ -165,10 +192,17 @@ func main() {
 		// run guide func
 		guide()
 	}
+
 	if wordList != "" && domain != "" {
 		check_subs(domain, wordList, bad_status_code)
 	}
+
 	if domain != "" && dork {
 		dorking(domain)
+		err := delete_extra_outputs(true) // true for if it is unix
+		if err != nil {
+			// if it is not unix os
+			delete_extra_outputs(false)
+		}
 	}
 }
