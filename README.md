@@ -2,15 +2,11 @@
 
 
 
-#A tool for finding subdomains of website
+## A tool for finding subdomains of website
 
-for running the tool you just can clone it and type :
+for running the tool you just can clone it and :
 
-go run subChie.go -h
-
-
-
-go to the directory and run:
+go to the directory and type:
 
 go run subChie.go -h 
 
