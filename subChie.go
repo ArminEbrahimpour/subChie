@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 )
@@ -36,7 +37,8 @@ func banner() {
  ___) | |_| | |_) | \ _ _|  __ |  | /___|
 |____/ \__,_|_.__/ \ __ _|_| |_|  | \
  created by Bl00dBlu35
- - - - - - - - - - - - - - - - - - - - - - -`)
+ - - - - - - - - - - - - - - - - - - - - - -
+ `)
 }
 
 func create_file() (*os.File, error) {
@@ -81,33 +83,55 @@ func check_subs(domain string, wordList string, bad_status_code [10]int) {
 	// Create a new scanner to read the file
 	scanner := bufio.NewScanner(wordListOb)
 
-	//Read each line and print it to the console
-	for scanner.Scan() {
+	// Use a wait group to wait for all goroutines to finish
+	var wg sync.WaitGroup
 
-		url := create_url("https", scanner, domain)
-		fmt.Println(url)
+	// Create a channel to receive results from goroutines
+	resultCh := make(chan string)
 
-		// the response of the url
-		res, err := http.Head(url)
-		if err != nil {
-			continue
-		}
+	// Define the number of worker goroutines
+	numWorkers := 10
 
-		// search for status codes of res in bad status code and create a Output.txt file of urls with good status codes
-		var flag bool = true
-		for _, bad_status := range bad_status_code {
-			if res.StatusCode == bad_status {
-				flag = false
-				break
+	// Launch worker goroutines
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Read each line and process it
+			for scanner.Scan() {
+				url := create_url("https", scanner, domain)
+				res, err := http.Head(url)
+				if err != nil {
+					continue
+				}
+
+				var flag bool = true
+				for _, badStatus := range bad_status_code {
+					if res.StatusCode == badStatus {
+						flag = false
+						break
+					}
+				}
+				if flag {
+					resultCh <- strconv.Itoa(res.StatusCode) + " " + url
+				}
 			}
-		}
-		if flag {
-			color.New(color.FgGreen, color.Bold).Println(strconv.Itoa(res.StatusCode) + " " + url)
-			if _, err = output.WriteString(url + "\n"); err != nil {
-				panic(err)
-			}
-		}
+		}()
+	}
 
+	// Start a goroutine to close the result channel after all workers finish
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	// Process results from the channel
+	for result := range resultCh {
+		color.New(color.FgGreen, color.Bold).Println(result)
+		if _, err := output.WriteString(result + "\n"); err != nil {
+			panic(err)
+		}
 	}
 }
 
