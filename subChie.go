@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -42,12 +43,13 @@ func banner() {
 }
 
 func create_file() (*os.File, error) {
-	// creating a new file name output.txt
+	// creating a new file name output.0	}
 	f, err := os.OpenFile("output.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		fmt.Print(err)
 		return nil, err
 	}
+
 	return f, nil
 }
 
@@ -197,18 +199,64 @@ func delete_extra_outputs(unix bool) error {
 
 }
 
+type Response struct {
+	IssuerCaId     int    `json:"issuer_ca_id"`
+	IssuerName     string `json:"issuer_name"`
+	CommonName     string `json:"common_name"`
+	NameValue      string `json:"name_value"`
+	Id             int    `json:"id"`
+	EntryTimeStamp string `json:"entry_timestamp"`
+	NotBefore      string `json:"not_before"`
+	NotAfter       string `json:"not_after"`
+	SerialNumber   string `json:"serial_number"`
+}
+
+func crtsh(domain string) {
+
+	// get request tohttps://crt.sh/?q=domain&output=json
+	Base_url := "https://crt.sh/?q=DOMAIN&output=json"
+	url := strings.Replace(Base_url, "DOMAIN", domain, 1)
+	var data Response
+
+	// send GET request
+	response, err := http.Get(url)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer response.Body.Close()
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(body)
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(data)
+
+}
+
+func abusedipdb(domain string) {
+	// use api of this site
+}
+
 func main() {
 	banner()
 	var help bool
 	var wordList string
 	var domain string
 	var dork bool
+	var crt bool
 	bad_status_code := [10]int{404, 401, 500, 501, 502, 503, 504, 505}
 
 	flag.BoolVar(&help, "h", false, "a breif guide of the tool")
 	flag.StringVar(&wordList, "w", "", "relative Path of the wordlist")
 	flag.StringVar(&domain, "d", "", "the target domain")
 	flag.BoolVar(&dork, "g", false, "use google dorks")
+	flag.BoolVar(&crt, "t", false, "use site crt.sh ")
 
 	flag.Parse()
 
@@ -228,5 +276,9 @@ func main() {
 			// if it is not unix os
 			delete_extra_outputs(false)
 		}
+	}
+
+	if crt {
+		crtsh(domain)
 	}
 }
